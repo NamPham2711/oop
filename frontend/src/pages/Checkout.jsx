@@ -16,6 +16,22 @@ async function parseJsonOrThrow(res) {
   return JSON.parse(text)
 }
 
+/** Xử lý response đặt hàng: thông báo rõ khi 401/403 (không đăng xuất tự động). */
+async function parseOrderResponseOrThrow(res) {
+  const text = await res.text()
+  if (res.status === 401 || res.status === 403) {
+    const hint =
+      'Máy chủ từ chối đặt hàng (không xác thực được phiên đăng nhập). ' +
+      'Thử đăng nhập lại; nếu vẫn lỗi, kiểm tra nginx có chuyển tiếp header Authorization tới backend và JWT_SECRET có khớp giữa các container không.'
+    throw new Error(text?.trim() ? `${text} (${res.status})` : `${hint} (${res.status})`)
+  }
+  if (!res.ok) {
+    throw new Error(text || `Lỗi máy chủ (${res.status})`)
+  }
+  if (!text) return null
+  return JSON.parse(text)
+}
+
 function normalizeItems(items) {
   return (items || [])
     .map((it) => ({
@@ -96,7 +112,7 @@ export default function Checkout() {
         payload.voucherCode = cart.voucher.code
       }
 
-      const created = await parseJsonOrThrow(await postOrder(payload))
+      const created = await parseOrderResponseOrThrow(await postOrder(payload))
 
       if (paymentMethod === 'PAYOS_NAPAS247') {
         console.log('[Checkout] Creating PayOS payment link for order:', created.id)
