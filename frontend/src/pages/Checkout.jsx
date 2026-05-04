@@ -6,7 +6,6 @@ import { useAuth } from '../context/AuthContext.jsx'
 import { useShop } from '../context/ShopContext.jsx'
 import { formatPrice } from '../utils/format.js'
 import { mapServerOrderToShop } from '../utils/orderMap.js'
-import { getToken } from '../api/client.js'
 
 async function parseJsonOrThrow(res) {
   const text = await res.text()
@@ -32,7 +31,7 @@ function normalizeItems(items) {
 export default function Checkout() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { user, isAuthenticated, logout } = useAuth()
+  const { user } = useAuth()
   const { cart, pricing, mergeServerOrder, clearCart } = useShop()
 
   const buyNowItems = useMemo(() => {
@@ -67,12 +66,6 @@ export default function Checkout() {
     setError('')
     setSuccess('')
 
-    if (!isAuthenticated || !getToken()) {
-      setError('Bạn cần đăng nhập để đặt hàng.')
-      navigate('/login', { replace: true, state: { from: '/checkout' } })
-      return
-    }
-
     if (!items.length) {
       setError('Không có sản phẩm để thanh toán.')
       return
@@ -103,13 +96,7 @@ export default function Checkout() {
         payload.voucherCode = cart.voucher.code
       }
 
-      const createdRes = await postOrder(payload)
-      if (createdRes.status === 401 || createdRes.status === 403) {
-        logout()
-        navigate('/login', { replace: true, state: { from: '/checkout' } })
-        throw new Error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.')
-      }
-      const created = await parseJsonOrThrow(createdRes)
+      const created = await parseJsonOrThrow(await postOrder(payload))
 
       if (paymentMethod === 'PAYOS_NAPAS247') {
         console.log('[Checkout] Creating PayOS payment link for order:', created.id)
