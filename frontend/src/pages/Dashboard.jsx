@@ -8,7 +8,10 @@ export default function Dashboard() {
   const loadStats = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await apiFetch('/api/admin/dashboard-stats?days=30')
+      const now = new Date()
+      const year = now.getFullYear()
+      const month = now.getMonth() + 1
+      const res = await apiFetch(`/api/admin/dashboard-stats?year=${year}&month=${month}`)
       if (res.ok) {
         setStats(await res.json())
       }
@@ -27,6 +30,7 @@ export default function Dashboard() {
   const salesByCategory = Array.isArray(stats?.salesByCategory) ? stats.salesByCategory : []
 
   const maxDailyRevenue = dailyRevenue.reduce((max, p) => Math.max(max, Number(p?.revenue || 0)), 0) || 1
+  const monthTitle = formatMonthTitle(dailyRevenue)
 
   if (loading) {
     return (
@@ -55,6 +59,7 @@ export default function Dashboard() {
       <div className="charts-grid">
         <article className="card chart-card">
           <h3>Revenue Overview</h3>
+          {monthTitle ? <p className="muted" style={{ marginTop: 6 }}>{monthTitle}</p> : null}
           <div className="line-chart">
             {dailyRevenue.map((point, idx) => (
               <div key={point.day || idx} className="line-item">
@@ -63,7 +68,7 @@ export default function Dashboard() {
                   style={{ height: `${(Number(point?.revenue || 0) / maxDailyRevenue) * 180}px` }}
                   title={`${formatDayLabel(point?.day)}: ${toCurrency(point?.revenue || 0)}`}
                 />
-                <span>{formatDayLabel(point?.day)}</span>
+                <span>{formatDayOnly(point?.day)}</span>
                 {idx < dailyRevenue.length - 1 ? <i className="line-dot" /> : null}
               </div>
             ))}
@@ -110,6 +115,23 @@ function formatDayLabel(isoDay) {
   const parts = String(isoDay).split('-')
   if (parts.length !== 3) return String(isoDay)
   return `${parts[2]}/${parts[1]}`
+}
+
+function formatDayOnly(isoDay) {
+  if (!isoDay) return ''
+  const parts = String(isoDay).split('-')
+  if (parts.length !== 3) return String(isoDay)
+  return String(Number(parts[2]))
+}
+
+function formatMonthTitle(dailyRevenue) {
+  if (!Array.isArray(dailyRevenue) || dailyRevenue.length === 0) return ''
+  const first = dailyRevenue[0]?.day
+  const parts = String(first || '').split('-')
+  if (parts.length !== 3) return ''
+  const year = parts[0]
+  const month = String(Number(parts[1]))
+  return `Tháng ${month} ${year}`
 }
 
 function formatPercent(value) {

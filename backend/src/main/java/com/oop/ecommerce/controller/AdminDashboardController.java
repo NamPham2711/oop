@@ -20,8 +20,13 @@ public class AdminDashboardController {
     @GetMapping("/dashboard-stats")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<DashboardStatsDto> dashboardStats(
-            @RequestParam(name = "days", defaultValue = "30") int days
+            @RequestParam(name = "days", defaultValue = "30") int days,
+            @RequestParam(name = "year", required = false) Integer year,
+            @RequestParam(name = "month", required = false) Integer month
     ) {
+        if (year != null && month != null) {
+            return ResponseEntity.ok(adminDashboardService.getDashboardStatsForMonth(year, month));
+        }
         return ResponseEntity.ok(adminDashboardService.getDashboardStats(days));
     }
 }
