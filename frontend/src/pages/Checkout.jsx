@@ -32,7 +32,7 @@ function normalizeItems(items) {
 export default function Checkout() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { user, isAuthenticated } = useAuth()
+  const { user, isAuthenticated, logout } = useAuth()
   const { cart, pricing, mergeServerOrder, clearCart } = useShop()
 
   const buyNowItems = useMemo(() => {
@@ -105,7 +105,9 @@ export default function Checkout() {
 
       const createdRes = await postOrder(payload)
       if (createdRes.status === 401 || createdRes.status === 403) {
-        throw new Error('Phiên đăng nhập đã hết hạn hoặc bạn chưa đăng nhập. Vui lòng đăng nhập lại.')
+        logout()
+        navigate('/login', { replace: true, state: { from: '/checkout' } })
+        throw new Error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.')
       }
       const created = await parseJsonOrThrow(createdRes)
 
