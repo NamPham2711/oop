@@ -8,7 +8,7 @@ export default function Dashboard() {
   const loadStats = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await apiFetch('/api/products/statistics')
+      const res = await apiFetch('/api/admin/dashboard-stats?days=30')
       if (res.ok) {
         setStats(await res.json())
       }
@@ -23,22 +23,10 @@ export default function Dashboard() {
     loadStats()
   }, [loadStats])
 
-  const salesByCategory = [
-    { category: 'Headphones', value: 35 },
-    { category: 'Laptop', value: 28 },
-    { category: 'Camera', value: 20 },
-    { category: 'Smartwatch', value: 10 },
-    { category: 'Backpack', value: 7 },
-  ]
+  const dailyRevenue = Array.isArray(stats?.dailyRevenue) ? stats.dailyRevenue : []
+  const salesByCategory = Array.isArray(stats?.salesByCategory) ? stats.salesByCategory : []
 
-  const monthlyRevenue = [
-    { month: 'Jan', value: 120 },
-    { month: 'Feb', value: 150 },
-    { month: 'Mar', value: 168 },
-    { month: 'Apr', value: 194 },
-    { month: 'May', value: 226 },
-    { month: 'Jun', value: 248 },
-  ]
+  const maxDailyRevenue = dailyRevenue.reduce((max, p) => Math.max(max, Number(p?.revenue || 0)), 0) || 1
 
   if (loading) {
     return (
@@ -58,25 +46,25 @@ export default function Dashboard() {
       </div>
 
       <div className="stats-grid">
-        <StatCard label="Revenue" value={toCurrency(stats?.totalRevenue || 0)} trend="+12.5%" />
-        <StatCard label="Products" value={stats?.totalProducts || 0} trend="+3.1%" />
-        <StatCard label="Items in Stock" value={stats?.totalItemsLeft || 0} trend="" />
-        <StatCard label="Items Sold" value={stats?.totalItemsSold || 0} trend="+8.2%" />
+        <StatCard label="Revenue" value={toCurrency(stats?.totalRevenue || 0)} />
+        <StatCard label="Products" value={stats?.totalProducts || 0} />
+        <StatCard label="Items in Stock" value={stats?.itemsInStock || 0} />
+        <StatCard label="Items Sold" value={stats?.itemsSold || 0} />
       </div>
 
       <div className="charts-grid">
         <article className="card chart-card">
           <h3>Revenue Overview</h3>
           <div className="line-chart">
-            {monthlyRevenue.map((point, idx) => (
-              <div key={point.month} className="line-item">
+            {dailyRevenue.map((point, idx) => (
+              <div key={point.day || idx} className="line-item">
                 <div
                   className="line-bar"
-                  style={{ height: `${(point.value / 260) * 180}px` }}
-                  title={`${point.month}: $${point.value}k`}
+                  style={{ height: `${(Number(point?.revenue || 0) / maxDailyRevenue) * 180}px` }}
+                  title={`${formatDayLabel(point?.day)}: ${toCurrency(point?.revenue || 0)}`}
                 />
-                <span>{point.month}</span>
-                {idx < monthlyRevenue.length - 1 ? <i className="line-dot" /> : null}
+                <span>{formatDayLabel(point?.day)}</span>
+                {idx < dailyRevenue.length - 1 ? <i className="line-dot" /> : null}
               </div>
             ))}
           </div>
@@ -85,13 +73,13 @@ export default function Dashboard() {
         <article className="card chart-card">
           <h3>Sales by Category</h3>
           <div className="bar-chart">
-            {salesByCategory.map((item) => (
-              <div key={item.category} className="bar-row">
-                <span>{item.category}</span>
+            {salesByCategory.map((item, idx) => (
+              <div key={`${item?.category || 'cat'}-${idx}`} className="bar-row">
+                <span>{item?.category || 'Khác'}</span>
                 <div className="bar-track">
-                  <div className="bar-fill" style={{ width: `${item.value}%` }} />
+                  <div className="bar-fill" style={{ width: `${Number(item?.percent || 0)}%` }} />
                 </div>
-                <strong>{item.value}%</strong>
+                <strong>{formatPercent(item?.percent)}</strong>
               </div>
             ))}
           </div>
@@ -115,4 +103,17 @@ function toCurrency(value) {
   return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(
     value,
   )
+}
+
+function formatDayLabel(isoDay) {
+  if (!isoDay) return ''
+  const parts = String(isoDay).split('-')
+  if (parts.length !== 3) return String(isoDay)
+  return `${parts[2]}/${parts[1]}`
+}
+
+function formatPercent(value) {
+  const n = Number(value)
+  if (!Number.isFinite(n)) return '0%'
+  return `${n.toFixed(0)}%`
 }
